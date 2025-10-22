@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Club Enrollment</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-10 col-xl-8">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h1 class="h2 mb-1">Club Enrollment Form</h1>
+                <p class="text-muted mb-0">Built-in HTML validation must pass before adding.</p>
+              </div>
+              <button id="backBtn" type="button" class="btn btn-outline-secondary">Back to Landing</button>
+            </div>
+            <form id="memberForm" class="row g-3">
+              <div class="col-md-6">
+                <label for="studentName" class="form-label">Student Name</label>
+                <input id="studentName" type="text" class="form-control" required autofocus>
+              </div>
+              <div class="col-md-6">
+                <label for="studentId" class="form-label">Student ID</label>
+                <input id="studentId" type="number" class="form-control" required min="10000000" max="99999999">
+              </div>
+              <div class="col-md-4">
+                <label for="club" class="form-label">Club</label>
+                <select id="club" class="form-select">
+                  <option>Chess</option>
+                  <option>Robotics</option>
+                  <option>Drama</option>
+                  <option>Music</option>
+                  <option>Art</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="day" class="form-label">Meeting Day</label>
+                <select id="day" class="form-select">
+                  <option>Mon</option>
+                  <option>Tue</option>
+                  <option>Wed</option>
+                  <option>Thu</option>
+                  <option>Fri</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="time" class="form-label">Meeting Time</label>
+                <input id="time" type="time" class="form-control" required>
+              </div>
+            </form>
+            <div class="row g-2 mt-4">
+              <div class="col-6 col-md-4 col-lg-3">
+                <button id="addBtn" type="button" class="btn btn-primary w-100">Add Member</button>
+              </div>
+              <div class="col-6 col-md-4 col-lg-3">
+                <button id="frontBtn" type="button" class="btn btn-primary w-100">Add to Front</button>
+              </div>
+              <div class="col-6 col-md-4 col-lg-3">
+                <button id="undoBtn" type="button" class="btn btn-outline-secondary w-100">Undo Last</button>
+              </div>
+              <div class="col-6 col-md-4 col-lg-3">
+                <button id="removeFirstBtn" type="button" class="btn btn-outline-secondary w-100">Remove First</button>
+              </div>
+              <div class="col-6 col-md-4 col-lg-3">
+                <button id="sortBtn" type="button" class="btn btn-warning w-100">Sort Roster</button>
+              </div>
+              <div class="col-6 col-md-4 col-lg-3">
+                <button id="showBtn" type="button" class="btn btn-success w-100">Show Roster</button>
+              </div>
+            </div>
+            <p id="msg" class="mt-4 fw-semibold"></p>
+            <p id="roster" class="mt-2 lh-lg"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    var nameInput = document.getElementById('studentName');
+    var idInput = document.getElementById('studentId');
+    var clubSelect = document.getElementById('club');
+    var daySelect = document.getElementById('day');
+    var timeInput = document.getElementById('time');
+    var addBtn = document.getElementById('addBtn');
+    var undoBtn = document.getElementById('undoBtn');
+    var frontBtn = document.getElementById('frontBtn');
+    var removeFirstBtn = document.getElementById('removeFirstBtn');
+    var sortBtn = document.getElementById('sortBtn');
+    var showBtn = document.getElementById('showBtn');
+    var backBtn = document.getElementById('backBtn');
+    var msgEl = document.getElementById('msg');
+    var rosterEl = document.getElementById('roster');
+    var form = document.getElementById('memberForm');
+
+    var roster = [];
+    var dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5 };
+    var vowels = ['A', 'E', 'I', 'O', 'U'];
+    var lastPermit = 'MWF';
+    var lastSortMode = 'Club-Id';
+
+    const formatMember = (m, i) => `#${i + 1}: ${m.name} | ID:${m.id} | ${m.club} | ${m.day} @ ${m.time}`;
+
+    function getSeed() {
+      var nameValue = nameInput.value.trim();
+      var idValue = idInput.value.trim();
+      var F = '';
+      if (nameValue.length > 0) {
+        F = nameValue.charAt(0).toUpperCase();
+      }
+      var L = null;
+      if (idValue.length > 0) {
+        L = Number(idValue.charAt(idValue.length - 1));
+      }
+      return { L: L, F: F };
+    }
+
+    function canAdd(day, L) {
+      if (typeof L !== 'number' || isNaN(L)) {
+        return true;
+      }
+      if (L % 2 === 0) {
+        return day === 'Mon' || day === 'Wed' || day === 'Fri';
+      }
+      return day === 'Tue' || day === 'Thu';
+    }
+
+    function getPermitLabel(L) {
+      if (typeof L === 'number' && !isNaN(L)) {
+        return L % 2 === 0 ? 'MWF' : 'TuTh';
+      }
+      return 'MWF';
+    }
+
+    function getSortModeLabel(F) {
+      if (vowels.indexOf(F) !== -1) {
+        return 'Day-Time-Name';
+      }
+      return 'Club-Id';
+    }
+
+    function render(messageText, messageType) {
+      if (typeof messageText === 'string' && messageText.length > 0) {
+        msgEl.textContent = messageText;
+      } else {
+        msgEl.textContent = '';
+      }
+      var baseClass = 'mt-4 fw-semibold';
+      if (messageType === 'success') {
+        msgEl.className = baseClass + ' text-success';
+      } else if (messageType === 'error') {
+        msgEl.className = baseClass + ' text-danger';
+      } else if (messageType === 'info') {
+        msgEl.className = baseClass + ' text-primary';
+      } else {
+        msgEl.className = baseClass + ' text-secondary';
+      }
+
+      var header = 'Count:' + roster.length + ' | SortMode:' + lastSortMode + ' | Permit:' + lastPermit;
+      if (roster.length > 0) {
+        var lines = roster.map(formatMember).join('<br>');
+        rosterEl.innerHTML = header + '<br>' + lines;
+      } else {
+        rosterEl.innerHTML = header;
+      }
+    }
+
+    function sortRoster(mode) {
+      if (mode === 'vowel') {
+        roster.sort(function (a, b) {
+          var dayDiff = dayOrder[a.day] - dayOrder[b.day];
+          if (dayDiff !== 0) {
+            return dayDiff;
+          }
+          if (a.time < b.time) {
+            return -1;
+          }
+          if (a.time > b.time) {
+            return 1;
+          }
+          return a.name.localeCompare(b.name);
+        });
+      } else {
+        roster.sort(function (a, b) {
+          var clubDiff = a.club.localeCompare(b.club);
+          if (clubDiff !== 0) {
+            return clubDiff;
+          }
+          return a.id - b.id;
+        });
+      }
+    }
+
+    function hasDuplicate(idValue, clubValue) {
+      for (var i = 0; i < roster.length; i += 1) {
+        if (roster[i].id === idValue && roster[i].club === clubValue) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    addBtn.addEventListener('click', function () {
+      if (!form.reportValidity()) {
+        return;
+      }
+      var seed = getSeed();
+      var permitLabel = getPermitLabel(seed.L);
+      if (typeof seed.L === 'number' && !isNaN(seed.L)) {
+        lastPermit = permitLabel;
+      }
+      var permitAllowed = canAdd(daySelect.value, seed.L);
+      if (!permitAllowed) {
+        render('Day not permitted: choose ' + permitLabel + ' days for ID ending in ' + seed.L + '.', 'error');
+        return;
+      }
+      var idNumber = Number(idInput.value);
+      var clubValue = clubSelect.value;
+      if (hasDuplicate(idNumber, clubValue)) {
+        render('Already enrolled: ID:' + idNumber + ' in ' + clubValue + '.', 'error');
+        return;
+      }
+      roster.push({
+        name: nameInput.value.trim(),
+        id: idNumber,
+        club: clubValue,
+        day: daySelect.value,
+        time: timeInput.value
+      });
+      form.reset();
+      nameInput.focus();
+      render('Member added to roster.', 'success');
+    });
+
+    frontBtn.addEventListener('click', function () {
+      if (!form.reportValidity()) {
+        return;
+      }
+      var seed = getSeed();
+      var permitLabel = getPermitLabel(seed.L);
+      if (typeof seed.L === 'number' && !isNaN(seed.L)) {
+        lastPermit = permitLabel;
+      }
+      var permitAllowed = canAdd(daySelect.value, seed.L);
+      if (!permitAllowed) {
+        render('Day not permitted: choose ' + permitLabel + ' days for ID ending in ' + seed.L + '.', 'error');
+        return;
+      }
+      var idNumber = Number(idInput.value);
+      var clubValue = clubSelect.value;
+      if (hasDuplicate(idNumber, clubValue)) {
+        render('Already enrolled: ID:' + idNumber + ' in ' + clubValue + '.', 'error');
+        return;
+      }
+      roster.unshift({
+        name: nameInput.value.trim(),
+        id: idNumber,
+        club: clubValue,
+        day: daySelect.value,
+        time: timeInput.value
+      });
+      form.reset();
+      nameInput.focus();
+      render('Member added to front of roster.', 'success');
+    });
+
+    undoBtn.addEventListener('click', function () {
+      if (roster.length === 0) {
+        render('Roster is already empty.', 'info');
+        return;
+      }
+      var removed = roster.pop();
+      render('Removed last member: ' + removed.name + '.', 'info');
+    });
+
+    removeFirstBtn.addEventListener('click', function () {
+      if (roster.length === 0) {
+        render('Roster is already empty.', 'info');
+        return;
+      }
+      var removed = roster.shift();
+      render('Removed first member: ' + removed.name + '.', 'info');
+    });
+
+    sortBtn.addEventListener('click', function () {
+      var seed = getSeed();
+      var mode = vowels.indexOf(seed.F) !== -1 ? 'vowel' : 'consonant';
+      lastSortMode = getSortModeLabel(seed.F);
+      if (typeof seed.L === 'number' && !isNaN(seed.L)) {
+        lastPermit = getPermitLabel(seed.L);
+      }
+      if (roster.length === 0) {
+        render('Roster is empty. Nothing to sort.', 'info');
+        return;
+      }
+      sortRoster(mode);
+      render('Roster sorted using ' + lastSortMode + ' mode.', 'info');
+    });
+
+    showBtn.addEventListener('click', function () {
+      var seed = getSeed();
+      if (typeof seed.L === 'number' && !isNaN(seed.L)) {
+        lastPermit = getPermitLabel(seed.L);
+      }
+      render('Roster displayed.', 'info');
+    });
+
+    backBtn.addEventListener('click', function () {
+      window.location.href = 'index.html';
+    });
+
+    render('', 'info');
+  </script>
+</body>
+</html>
